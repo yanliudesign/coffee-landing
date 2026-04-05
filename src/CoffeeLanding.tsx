@@ -1,6 +1,7 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
-import { MapPin, Clock, ArrowRight } from "lucide-react";
+import { MapPin, Clock, ArrowRight, CalendarDays, Check, Loader2 } from "lucide-react";
+import { supabase } from "./supabase";
 
 function FadeInSection({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null);
@@ -627,8 +628,40 @@ const MENU_ITEMS = [
   { name: "Affogato", price: "6.50", desc: "Vanilla gelato drowned in espresso" },
 ];
 
+const TIME_SLOTS = [
+  "7:00 AM", "7:30 AM", "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM",
+  "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
+  "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
+  "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM",
+];
+
 export default function CoffeeLanding() {
   const heroRef = useRef(null);
+
+  const [formData, setFormData] = useState({
+    name: "", phone: "", date: "", time: "", guests: "2", note: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleReserve = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.from("reservations").insert({
+      name: formData.name,
+      phone: formData.phone,
+      date: formData.date,
+      time: formData.time,
+      guests: parseInt(formData.guests),
+      note: formData.note || null,
+    });
+    setSubmitting(false);
+    if (!error) {
+      setSubmitted(true);
+      setFormData({ name: "", phone: "", date: "", time: "", guests: "2", note: "" });
+    }
+  };
+
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
@@ -847,6 +880,113 @@ export default function CoffeeLanding() {
           color: var(--copper);
         }
 
+        .reserve-form {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          text-align: left;
+        }
+
+        .reserve-field {
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+
+        .reserve-field.full {
+          grid-column: 1 / -1;
+        }
+
+        .reserve-field label {
+          font-size: 0.75rem;
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--espresso);
+          opacity: 0.5;
+        }
+
+        .reserve-field input,
+        .reserve-field select,
+        .reserve-field textarea {
+          font-family: 'Outfit', sans-serif;
+          font-size: 0.95rem;
+          padding: 0.75rem 1rem;
+          border: 1px solid rgba(26, 15, 10, 0.1);
+          border-radius: 12px;
+          background: white;
+          color: var(--espresso);
+          outline: none;
+          transition: border-color 0.3s ease;
+          resize: none;
+        }
+
+        .reserve-field input:focus,
+        .reserve-field select:focus,
+        .reserve-field textarea:focus {
+          border-color: var(--copper);
+        }
+
+        .reserve-field input::placeholder,
+        .reserve-field textarea::placeholder {
+          color: rgba(26, 15, 10, 0.25);
+        }
+
+        .reserve-submit {
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          padding: 1rem;
+          margin-top: 0.5rem;
+          background: var(--espresso);
+          color: var(--cream);
+          font-family: 'Outfit', sans-serif;
+          font-size: 0.9rem;
+          font-weight: 500;
+          letter-spacing: 0.06em;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .reserve-submit:hover {
+          background: var(--copper);
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(26, 15, 10, 0.15);
+        }
+
+        .reserve-submit:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+
+        .reserve-success {
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 1rem;
+          background: rgba(139, 158, 107, 0.1);
+          border: 1px solid rgba(139, 158, 107, 0.25);
+          border-radius: 12px;
+          color: #5A7A3A;
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .spinner {
+          animation: spin 1s linear infinite;
+        }
+
         .hero-layout {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -901,6 +1041,7 @@ export default function CoffeeLanding() {
         <div style={{ display: "flex", gap: "2.5rem" }}>
           <a href="#blends" className="nav-link">Blends</a>
           <a href="#menu" className="nav-link">Menu</a>
+          <a href="#reserve" className="nav-link">Reserve</a>
           <a href="#story" className="nav-link">Story</a>
           <a href="#visit" className="nav-link">Visit</a>
         </div>
@@ -1197,6 +1338,133 @@ export default function CoffeeLanding() {
               </div>
             </FadeInSection>
           ))}
+        </div>
+      </section>
+
+      {/* ─── RESERVE ─── */}
+      <section
+        id="reserve"
+        style={{
+          position: "relative",
+          padding: "7rem 2rem",
+          background: "var(--espresso)",
+          overflow: "hidden",
+        }}
+      >
+        <div className="grain-overlay" style={{ opacity: 0.05 }} />
+
+        <div style={{ maxWidth: 560, margin: "0 auto", position: "relative", zIndex: 2 }}>
+          <FadeInSection>
+            <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+              <p className="section-label" style={{ marginBottom: "0.75rem" }}>Reserve a Table</p>
+              <h2 className="font-display" style={{ fontSize: "clamp(2.5rem, 5vw, 3.5rem)", lineHeight: 1, color: "var(--cream)", marginBottom: "0.75rem" }}>
+                Book Your{" "}
+                <span className="font-editorial" style={{ fontStyle: "italic", color: "var(--copper)", fontWeight: 300 }}>
+                  Moment
+                </span>
+              </h2>
+              <p className="font-editorial" style={{ fontSize: "1.1rem", color: "rgba(244, 237, 228, 0.4)", fontStyle: "italic" }}>
+                A quiet corner, a perfect cup — we'll have it ready for you.
+              </p>
+            </div>
+          </FadeInSection>
+
+          <FadeInSection delay={0.15}>
+            <div style={{
+              background: "var(--cream)",
+              borderRadius: 20,
+              padding: "2.5rem 2.5rem",
+              boxShadow: "0 24px 64px rgba(0, 0, 0, 0.3)",
+            }}>
+              {submitted ? (
+                <div className="reserve-success" style={{ padding: "2rem" }}>
+                  <Check size={20} />
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Reservation confirmed!</div>
+                    <div style={{ fontSize: "0.85rem", opacity: 0.7 }}>We look forward to seeing you.</div>
+                  </div>
+                </div>
+              ) : (
+                <form className="reserve-form" onSubmit={handleReserve}>
+                  <div className="reserve-field">
+                    <label>Name</label>
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="reserve-field">
+                    <label>Phone</label>
+                    <input
+                      type="tel"
+                      placeholder="(503) 555-0123"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="reserve-field">
+                    <label>Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="reserve-field">
+                    <label>Time</label>
+                    <select
+                      required
+                      value={formData.time}
+                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    >
+                      <option value="" disabled>Select a time</option>
+                      {TIME_SLOTS.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="reserve-field">
+                    <label>Guests</label>
+                    <select
+                      value={formData.guests}
+                      onChange={(e) => setFormData({ ...formData, guests: e.target.value })}
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>{n} {n === 1 ? "guest" : "guests"}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="reserve-field">
+                    <label>Special Requests</label>
+                    <input
+                      type="text"
+                      placeholder="Anything we should know?"
+                      value={formData.note}
+                      onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                    />
+                  </div>
+
+                  <button type="submit" className="reserve-submit" disabled={submitting}>
+                    {submitting ? (
+                      <><Loader2 size={16} className="spinner" /> Reserving...</>
+                    ) : (
+                      <><CalendarDays size={16} /> Reserve a Table</>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          </FadeInSection>
         </div>
       </section>
 
